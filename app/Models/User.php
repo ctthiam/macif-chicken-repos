@@ -8,35 +8,32 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
 
+/**
+ * Fichier : app/Models/User.php
+ */
 class User extends Authenticatable
 {
     use HasApiTokens, HasFactory, Notifiable, HasRoles;
 
     protected $fillable = [
-        'name',
-        'email',
-        'password',
-        'phone',
-        'role',
-        'avatar',
-        'adresse',
-        'ville',
-        'is_verified',
-        'is_active',
-        'email_verification_token',
-        'email_verified_at',
+        'name', 'email', 'password', 'phone', 'role',
+        'avatar', 'adresse', 'ville',
+        'is_verified', 'is_active',
+        'email_verification_token', 'email_verified_at',
+        'password_reset_token', 'password_reset_expires_at', // AUTH-08
     ];
 
     protected $hidden = [
-        'password',
-        'remember_token',
+        'password', 'remember_token',
         'email_verification_token',
+        'password_reset_token',
     ];
 
     protected $casts = [
-        'is_verified' => 'boolean',
-        'is_active'   => 'boolean',
-        'email_verified_at' => 'datetime',
+        'is_verified'               => 'boolean',
+        'is_active'                 => 'boolean',
+        'email_verified_at'         => 'datetime',
+        'password_reset_expires_at' => 'datetime',
     ];
 
     // ─── Relations ───────────────────────────────────────────
@@ -96,23 +93,22 @@ class User extends Authenticatable
 
     // ─── Helpers ─────────────────────────────────────────────
 
-    public function isAdmin(): bool
-    {
-        return $this->role === 'admin';
-    }
-
-    public function isEleveur(): bool
-    {
-        return $this->role === 'eleveur';
-    }
-
-    public function isAcheteur(): bool
-    {
-        return $this->role === 'acheteur';
-    }
+    public function isAdmin(): bool    { return $this->role === 'admin'; }
+    public function isEleveur(): bool  { return $this->role === 'eleveur'; }
+    public function isAcheteur(): bool { return $this->role === 'acheteur'; }
 
     public function hasAbonnementActif(): bool
     {
         return $this->abonnementActif()->exists();
+    }
+
+    /**
+     * Vérifie si le token de reset est encore valide (non expiré).
+     */
+    public function isPasswordResetTokenValid(): bool
+    {
+        return $this->password_reset_token !== null
+            && $this->password_reset_expires_at !== null
+            && $this->password_reset_expires_at->isFuture();
     }
 }
