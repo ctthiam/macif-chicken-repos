@@ -10,6 +10,12 @@ use Illuminate\Support\Facades\Log;
 /**
  * Service : Gestion de l'escrow (séquestre des fonds)
  * Les fonds sont libérés à l'éleveur après confirmation livraison ou 48h auto.
+ *
+ * Intégration paiement : NabooPay (Sprint PAY)
+ * NabooPay supporte nativement Wave, Orange Money, Free Money.
+ * Doc API : https://naboopay.com/documentation
+ *
+ * Fichier : app/Services/EscrowService.php
  */
 class EscrowService
 {
@@ -21,7 +27,7 @@ class EscrowService
      * Libère les fonds escrow vers l'éleveur.
      * Met à jour statut_paiement = 'libere' + escrow_libere_at.
      *
-     * @param Commande $commande
+     * @param  Commande $commande
      * @return void
      * @throws \Exception si paiement déjà libéré ou non payé
      */
@@ -33,28 +39,28 @@ class EscrowService
 
         DB::transaction(function () use ($commande) {
             $commande->update([
-                'statut_paiement' => 'libere',
+                'statut_paiement'  => 'libere',
                 'escrow_libere_at' => now(),
             ]);
 
-            // TODO: Appel API PayTech pour virement vers éleveur
-            // $this->paytech->transfert($commande->montant_eleveur, $commande->eleveur);
+            // TODO Sprint PAY : Virement NabooPay vers l'éleveur
+            // POST https://api.naboopay.com/api/v1/transaction/transfer
+            // Body : { amount: commande->montant_eleveur, recipient: eleveur->naboopay_account }
 
-            // Notifier l'éleveur
             $this->notificationService->notifier(
-                userId: $commande->eleveur_id,
-                titre: 'Fonds reçus',
+                userId:  $commande->eleveur_id,
+                titre:   'Fonds reçus',
                 message: "Les fonds de la commande #{$commande->id} ont été virés sur votre compte.",
-                type: 'payment',
-                data: ['commande_id' => $commande->id, 'montant' => $commande->montant_eleveur]
+                type:    'payment',
+                data:    ['commande_id' => $commande->id, 'montant' => $commande->montant_eleveur]
             );
         });
     }
 
     /**
-     * Rembourse l'acheteur (décision admin uniquement via PayTech refund).
+     * Rembourse l'acheteur (annulation ou décision admin).
      *
-     * @param Commande $commande
+     * @param  Commande $commande
      * @return void
      */
     public function rembourser(Commande $commande): void
@@ -62,15 +68,16 @@ class EscrowService
         DB::transaction(function () use ($commande) {
             $commande->update(['statut_paiement' => 'rembourse']);
 
-            // TODO: Appel API PayTech refund
-            // $this->paytech->remboursement($commande->reference_transaction);
+            // TODO Sprint PAY : Remboursement NabooPay
+            // POST https://api.naboopay.com/api/v1/transaction/refund
+            // Body : { transaction_id: commande->naboo_transaction_id }
 
             $this->notificationService->notifier(
-                userId: $commande->acheteur_id,
-                titre: 'Remboursement effectué',
+                userId:  $commande->acheteur_id,
+                titre:   'Remboursement effectué',
                 message: "Votre commande #{$commande->id} a été remboursée.",
-                type: 'payment',
-                data: ['commande_id' => $commande->id, 'montant' => $commande->montant_total]
+                type:    'payment',
+                data:    ['commande_id' => $commande->id, 'montant' => $commande->montant_total]
             );
         });
     }

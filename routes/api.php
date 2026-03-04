@@ -5,7 +5,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
-
+use App\Http\Controllers\Public\StockPublicController;
 /*
 |─────────────────────────────────────────────────────────────
 | AUTH (publique)
@@ -33,6 +33,11 @@ Route::prefix('auth')->group(function () {
 Route::get('/stocks',                           [\App\Http\Controllers\Public\StockPublicController::class, 'index']);
 Route::get('/stocks/{id}',                      [\App\Http\Controllers\Public\StockPublicController::class, 'show']);
 Route::get('/eleveurs/{id}/public',             [\App\Http\Controllers\Public\EleveurPublicController::class, 'show']);
+
+// Public — Recherche & Découverte (Sprint 4)
+Route::get('/stocks', [StockPublicController::class, 'index']);
+Route::get('/stocks/{id}', [StockPublicController::class, 'show']);
+Route::get('/eleveurs/carte', [StockPublicController::class, 'carte']);
 
 /*
 |─────────────────────────────────────────────────────────────
@@ -66,6 +71,8 @@ Route::middleware(['auth:sanctum', 'role.acheteur'])->prefix('acheteur')->group(
     Route::post('/commandes',                   [\App\Http\Controllers\Acheteur\CommandeController::class, 'store']);
     Route::get('/commandes',                    [\App\Http\Controllers\Acheteur\CommandeController::class, 'index']);
     Route::get('/commandes/{id}',               [\App\Http\Controllers\Acheteur\CommandeController::class, 'show']);
+    // CMD-04 — Annulation acheteur
+    Route::delete('/commandes/{id}',            [\App\Http\Controllers\Acheteur\CommandeController::class, 'destroy']);
     Route::get('/dashboard',                    [\App\Http\Controllers\Acheteur\DashboardController::class, 'index']);
     Route::post('/favoris/{eleveur_id}',        [\App\Http\Controllers\Acheteur\FavoriController::class, 'store']);
     Route::delete('/favoris/{eleveur_id}',      [\App\Http\Controllers\Acheteur\FavoriController::class, 'destroy']);
