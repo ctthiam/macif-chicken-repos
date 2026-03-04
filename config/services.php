@@ -34,5 +34,17 @@ return [
             'channel' => env('SLACK_BOT_USER_DEFAULT_CHANNEL'),
         ],
     ],
+     /*
+    |──────────────────────────────────────────────────────────────
+    | PayTech — Paiement en ligne Sénégal
+    | Wave + Orange Money + Free Money
+    | Doc : https://paytech.sn/
+    |──────────────────────────────────────────────────────────────
+    */
+    'paytech' => [
+        'api_key'    => env('PAYTECH_API_KEY', ''),
+        'api_secret' => env('PAYTECH_API_SECRET', 'test_secret'),
+        'env'        => env('PAYTECH_ENV', 'test'),
+    ],
 
 ];

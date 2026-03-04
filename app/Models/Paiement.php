@@ -1,11 +1,17 @@
-<?php // app/Models/Paiement.php
+<?php
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Fichier : app/Models/Paiement.php
+ */
 class Paiement extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'commande_id', 'user_id', 'montant', 'methode',
         'reference_transaction', 'statut', 'webhook_data',

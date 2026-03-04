@@ -6,6 +6,7 @@
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\Public\StockPublicController;
+use App\Http\Controllers\Eleveur\TransactionController;
 /*
 |─────────────────────────────────────────────────────────────
 | AUTH (publique)
@@ -58,6 +59,8 @@ Route::middleware(['auth:sanctum', 'role.eleveur'])->prefix('eleveur')->group(fu
     Route::put('/avis/{id}/reply',              [\App\Http\Controllers\Eleveur\AvisController::class, 'reply']);
     Route::get('/abonnement',                   [\App\Http\Controllers\Eleveur\AbonnementController::class, 'show']);
     Route::get('/transactions',                 [\App\Http\Controllers\Eleveur\TransactionController::class, 'index']);
+    // PAY-06 — Reçu PDF (dans le groupe eleveur)
+Route::get('/transactions/{id}/recu', [TransactionController::class, 'recu']);
 });
 
 /*

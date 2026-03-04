@@ -12,7 +12,7 @@ class Abonnement extends Model
 {
     use HasFactory;
 
-    // Prix par plan (FCFA)
+    // Prix par plan (FCFA/mois)
     const PRIX = [
         'starter' => 5000,
         'pro'     => 15000,
@@ -25,6 +25,9 @@ class Abonnement extends Model
         'pro'     => 10,
         'premium' => null,
     ];
+
+    // Durée en jours (1 mois = 30 jours)
+    const DUREE_JOURS = 30;
 
     protected $fillable = [
         'eleveur_id', 'plan', 'prix_mensuel',
