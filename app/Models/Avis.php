@@ -7,38 +7,49 @@ use Illuminate\Database\Eloquent\Model;
 
 /**
  * Fichier : app/Models/Avis.php
+ *
+ * Colonnes :
+ *   commande_id (unique), auteur_id, cible_id,
+ *   note (tinyint 1-5), commentaire, reply, is_reported
  */
 class Avis extends Model
 {
     use HasFactory;
 
     protected $fillable = [
-        'commande_id',
-        'auteur_id',
-        'cible_id',
-        'note',
-        'commentaire',
-        'reply',
-        'is_reported',
+        'commande_id', 'auteur_id', 'cible_id',
+        'note', 'commentaire', 'reply', 'is_reported',
     ];
 
     protected $casts = [
-        'is_reported' => 'boolean',
         'note'        => 'integer',
+        'is_reported' => 'boolean',
     ];
 
-    public function auteur()
-    {
-        return $this->belongsTo(User::class, 'auteur_id');
-    }
+    public function commande() { return $this->belongsTo(Commande::class); }
+    public function auteur()   { return $this->belongsTo(User::class, 'auteur_id'); }
+    public function cible()    { return $this->belongsTo(User::class, 'cible_id'); }
 
-    public function cible()
-    {
-        return $this->belongsTo(User::class, 'cible_id');
-    }
+    // ══════════════════════════════════════════════════════════════
+    // AVI-04 — Recalcul note moyenne après création/suppression
+    // ══════════════════════════════════════════════════════════════
 
-    public function commande()
+    /**
+     * Recalcule et sauvegarde note_moyenne + nombre_avis
+     * dans eleveur_profiles pour un éleveur donné.
+     *
+     * @param  int $eleveurId  ID de l'éleveur (cible_id)
+     */
+    public static function recalculeNoteMoyenne(int $eleveurId): void
     {
-        return $this->belongsTo(Commande::class);
+        $stats = static::where('cible_id', $eleveurId)
+            ->where('is_reported', false)
+            ->selectRaw('AVG(note) as moyenne, COUNT(*) as total')
+            ->first();
+
+        EleveurProfile::where('user_id', $eleveurId)->update([
+            'note_moyenne' => round((float) ($stats->moyenne ?? 0), 1),
+            'nombre_avis'  => (int) ($stats->total ?? 0),
+        ]);
     }
 }
