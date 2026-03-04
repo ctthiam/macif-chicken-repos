@@ -40,6 +40,12 @@ Route::get('/stocks', [StockPublicController::class, 'index']);
 Route::get('/stocks/{id}', [StockPublicController::class, 'show']);
 Route::get('/eleveurs/carte', [StockPublicController::class, 'carte']);
 
+// Public
+Route::get('/abonnements/plans', [\App\Http\Controllers\Eleveur\AbonnementController::class, 'plans']);
+
+// Webhook abonnement (public)
+Route::post('/paiements/webhook-abonnement', [\App\Http\Controllers\Shared\PaiementController::class, 'webhookAbonnement']);
+
 /*
 |─────────────────────────────────────────────────────────────
 | ÉLEVEUR (auth + role:eleveur)
@@ -59,6 +65,8 @@ Route::middleware(['auth:sanctum', 'role.eleveur'])->prefix('eleveur')->group(fu
     Route::put('/avis/{id}/reply',              [\App\Http\Controllers\Eleveur\AvisController::class, 'reply']);
     Route::get('/abonnement',                   [\App\Http\Controllers\Eleveur\AbonnementController::class, 'show']);
     Route::get('/transactions',                 [\App\Http\Controllers\Eleveur\TransactionController::class, 'index']);
+    // Groupe éleveur (déjà présent : GET /abonnement)
+    Route::post('/abonnement/souscrire', [\App\Http\Controllers\Eleveur\AbonnementController::class, 'souscrire']);
     // PAY-06 — Reçu PDF (dans le groupe eleveur)
 Route::get('/transactions/{id}/recu', [TransactionController::class, 'recu']);
 });
