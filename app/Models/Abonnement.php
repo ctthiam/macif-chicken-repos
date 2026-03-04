@@ -2,10 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Fichier : app/Models/Abonnement.php
+ */
 class Abonnement extends Model
 {
+    use HasFactory;
+
     // Prix par plan (FCFA)
     const PRIX = [
         'starter' => 5000,
@@ -13,11 +19,11 @@ class Abonnement extends Model
         'premium' => 30000,
     ];
 
-    // Limite de stocks par plan
+    // Limite de stocks actifs par plan (null = illimité)
     const STOCK_LIMIT = [
         'starter' => 3,
         'pro'     => 10,
-        'premium' => null, // illimité
+        'premium' => null,
     ];
 
     protected $fillable = [

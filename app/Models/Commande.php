@@ -2,10 +2,16 @@
 
 namespace App\Models;
 
+use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
+/**
+ * Fichier : app/Models/Commande.php
+ */
 class Commande extends Model
 {
+    use HasFactory;
+
     protected $fillable = [
         'acheteur_id',
         'eleveur_id',
@@ -25,12 +31,12 @@ class Commande extends Model
     ];
 
     protected $casts = [
-        'poids_total'              => 'decimal:2',
-        'montant_total'            => 'decimal:0',
-        'commission_plateforme'    => 'decimal:0',
-        'montant_eleveur'          => 'decimal:0',
-        'date_livraison_souhaitee' => 'date',
-        'escrow_libere_at'         => 'datetime',
+        'montant_total'           => 'decimal:0',
+        'commission_plateforme'   => 'decimal:0',
+        'montant_eleveur'         => 'decimal:0',
+        'poids_total'             => 'decimal:2',
+        'date_livraison_souhaitee'=> 'date',
+        'escrow_libere_at'        => 'datetime',
     ];
 
     public function acheteur()
