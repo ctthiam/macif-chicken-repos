@@ -3,109 +3,163 @@
 namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
-use App\Http\Resources\EleveurProfileResource;
+use App\Models\EleveurProfile;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
 /**
- * Contrôleur Admin : Gestion des utilisateurs
+ * Contrôleur : Gestion utilisateurs (admin)
  *
  * Fichier : app/Http/Controllers/Admin/UserController.php
  *
- * Routes couvertes :
- *   PRO-07 : PUT /api/admin/users/{id}/certifier     — Badge éleveur certifié
- *   ADMIN  : GET /api/admin/users                    — Liste utilisateurs (stub)
- *   ADMIN  : PUT /api/admin/users/{id}/toggle-status — Activer/suspendre (stub)
+ * Routes :
+ *   ADM-02 : GET /api/admin/users                        — Liste avec filtres
+ *   ADM-03 : PUT /api/admin/users/{id}/toggle-status     — Suspendre/réactiver
+ *   ADM-04 : PUT /api/admin/users/{id}/certifier         — Certifier éleveur
  */
 class UserController extends Controller
 {
     // ══════════════════════════════════════════════════════════════
-    // PRO-07 — Badge Éleveur Certifié
-    // PUT /api/admin/users/{id}/certifier
+    // ADM-02 — Liste et recherche utilisateurs
+    // GET /api/admin/users
     // ══════════════════════════════════════════════════════════════
 
     /**
-     * Bascule le statut de certification d'un éleveur.
-     * Action réservée à l'admin (middleware role.admin sur la route).
-     *
-     * - Vérifie que l'utilisateur existe et est bien un éleveur
-     * - Bascule is_certified : false → true, true → false
-     * - Retourne le profil mis à jour
-     *
-     * @param  int $id  ID de l'utilisateur éleveur
-     * @return JsonResponse  200 | 404 | 422
+     * Filtres disponibles :
+     *   ?role=eleveur|acheteur|admin
+     *   ?is_active=1|0
+     *   ?ville=Dakar
+     *   ?search=nom_ou_email
+     *   ?per_page=20 (défaut 20)
      */
-    public function certifier(int $id): JsonResponse
+    public function index(Request $request): JsonResponse
     {
-        // ── 1. Trouver l'éleveur ────────────────────────────────────
-        $user = User::where('id', $id)
-            ->where('role', 'eleveur')
-            ->first();
+        $query = User::with('eleveurProfile:user_id,nom_poulailler,is_certified,note_moyenne')
+            ->orderByDesc('created_at');
 
-        if (!$user) {
-            return response()->json([
-                'success' => false,
-                'message' => 'Éleveur introuvable.',
-                'errors'  => [],
-            ], 404);
+        if ($request->filled('role')) {
+            $query->where('role', $request->role);
         }
 
-        // ── 2. Vérifier que le profil éleveur existe ─────────────────
+        if ($request->filled('is_active')) {
+            $query->where('is_active', (bool) $request->is_active);
+        }
+
+        if ($request->filled('ville')) {
+            $query->where('ville', 'ilike', '%' . $request->ville . '%');
+        }
+
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ilike', "%{$search}%")
+                  ->orWhere('email', 'ilike', "%{$search}%")
+                  ->orWhere('phone', 'ilike', "%{$search}%");
+            });
+        }
+
+        $users = $query->paginate($request->integer('per_page', 20));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Utilisateurs récupérés avec succès.',
+            'data'    => $users->map(fn ($u) => [
+                'id'           => $u->id,
+                'name'         => $u->name,
+                'email'        => $u->email,
+                'phone'        => $u->phone,
+                'role'         => $u->role,
+                'ville'        => $u->ville,
+                'is_active'    => $u->is_active,
+                'is_verified'  => $u->is_verified,
+                'is_certified' => $u->eleveurProfile?->is_certified ?? false,
+                'created_at'   => $u->created_at?->toISOString(),
+            ]),
+            'meta' => [
+                'current_page' => $users->currentPage(),
+                'last_page'    => $users->lastPage(),
+                'total'        => $users->total(),
+            ],
+        ], 200);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ADM-03 — Suspendre / réactiver un compte
+    // PUT /api/admin/users/{id}/toggle-status
+    // ══════════════════════════════════════════════════════════════
+
+    public function toggleStatus(Request $request, int $id): JsonResponse
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Utilisateur introuvable.'], 404);
+        }
+
+        // Protéger les admins
+        if ($user->role === 'admin') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Impossible de modifier le statut d\'un administrateur.',
+            ], 403);
+        }
+
+        $user->update(['is_active' => !$user->is_active]);
+
+        $action = $user->is_active ? 'réactivé' : 'suspendu';
+
+        return response()->json([
+            'success'   => true,
+            'message'   => "Compte {$action} avec succès.",
+            'data'      => [
+                'id'        => $user->id,
+                'is_active' => $user->is_active,
+            ],
+        ], 200);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // ADM-04 — Certifier un éleveur
+    // PUT /api/admin/users/{id}/certifier
+    // ══════════════════════════════════════════════════════════════
+
+    public function certifier(Request $request, int $id): JsonResponse
+    {
+        $user = User::find($id);
+
+        if (!$user) {
+            return response()->json(['success' => false, 'message' => 'Utilisateur introuvable.'], 404);
+        }
+
+        if ($user->role !== 'eleveur') {
+            return response()->json([
+                'success' => false,
+                'message' => 'Seuls les éleveurs peuvent être certifiés.',
+            ], 422);
+        }
+
         $profile = $user->eleveurProfile;
 
         if (!$profile) {
             return response()->json([
                 'success' => false,
-                'message' => 'Cet éleveur n\'a pas encore créé son profil poulailler.',
-                'errors'  => [],
-            ], 422);
+                'message' => 'Profil éleveur introuvable.',
+            ], 404);
         }
 
-        // ── 3. Basculer le statut de certification ───────────────────
-        $wasCertified  = $profile->is_certified;
-        $profile->update(['is_certified' => !$wasCertified]);
+        // Toggle certification
+        $profile->update(['is_certified' => !$profile->is_certified]);
 
-        $user->load('eleveurProfile');
-
-        $message = $profile->fresh()->is_certified
-            ? "L'éleveur {$user->name} a été certifié avec succès."
-            : "La certification de l'éleveur {$user->name} a été retirée.";
+        $action = $profile->is_certified ? 'certifié' : 'décertifié';
 
         return response()->json([
             'success' => true,
-            'message' => $message,
-            'data'    => new EleveurProfileResource($user),
+            'message' => "Éleveur {$action} avec succès.",
+            'data'    => [
+                'user_id'      => $user->id,
+                'is_certified' => $profile->is_certified,
+            ],
         ], 200);
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    // ADMIN — Liste des utilisateurs
-    // GET /api/admin/users
-    // ══════════════════════════════════════════════════════════════
-
-    /**
-     * @param  Request $request
-     * @return JsonResponse
-     */
-    public function index(Request $request): JsonResponse
-    {
-        // TODO — sprint Admin
-        return response()->json(['success' => false, 'message' => 'Non implémenté.', 'data' => null], 501);
-    }
-
-    // ══════════════════════════════════════════════════════════════
-    // ADMIN — Activer / Suspendre un compte
-    // PUT /api/admin/users/{id}/toggle-status
-    // ══════════════════════════════════════════════════════════════
-
-    /**
-     * @param  int $id
-     * @return JsonResponse
-     */
-    public function toggleStatus(int $id): JsonResponse
-    {
-        // TODO — sprint Admin
-        return response()->json(['success' => false, 'message' => 'Non implémenté.', 'data' => null], 501);
     }
 }

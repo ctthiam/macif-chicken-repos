@@ -146,4 +146,6 @@ Route::middleware(['auth:sanctum', 'role.admin'])->prefix('admin')->group(functi
     Route::put('/litiges/{id}/resoudre',        [\App\Http\Controllers\Admin\LitigeController::class, 'resoudre']);
     Route::get('/finances',                     [\App\Http\Controllers\Admin\FinanceController::class, 'index']);
     Route::get('/finances/export',              [\App\Http\Controllers\Admin\FinanceController::class, 'export']);
+    Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']);
+    Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
 });
