@@ -65,7 +65,7 @@ class StockPublicController extends Controller
             ->where('statut', 'disponible')
             ->where(function ($q) {
                 $q->whereNull('date_disponibilite')
-                    ->orWhere('date_disponibilite', '<=', now()->toDateString());
+                    ->orWhere('date_disponibilite', '<=', now()->addDays(7)->toDateString()); // ← +7 jours ->orWhere('date_disponibilite', '<=', now()->toDateString());
             })
             ->with(['eleveur' => function ($q) {
                 $q->where('is_active', true)

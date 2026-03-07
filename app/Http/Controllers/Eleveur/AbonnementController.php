@@ -137,6 +137,21 @@ class AbonnementController extends Controller
             ]);
 
             // Initier le paiement PayTech
+            // En mode développement (APP_ENV=local) sans clés PayTech configurées,
+            // on active directement l'abonnement pour permettre les tests.
+            $payTechKey = config('services.paytech.api_key');
+            if (app()->environment('local') && empty($payTechKey)) {
+                // Mode test : activer directement sans paiement réel
+                $abonnement->update(['statut' => 'actif']);
+                return response()->json([
+                    'success'     => true,
+                    'message'     => "Abonnement {$plan} activé (mode test — paiement simulé).",
+                    'payment_url' => null,
+                    'reference'   => $reference,
+                    'abonnement'  => new AbonnementResource($abonnement),
+                ], 200);
+            }
+
             $result = $this->paiementService->initierPaiementAbonnement(
                 eleveur:    $eleveur,
                 abonnement: $abonnement,

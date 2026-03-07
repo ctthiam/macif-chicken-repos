@@ -17,6 +17,11 @@ return Application::configure(basePath: dirname(__DIR__))
         // ─── Sanctum stateful middleware pour SPA ───────────
         $middleware->statefulApi();
 
+         // Désactiver CSRF pour les routes API
+    $middleware->validateCsrfTokens(except: [
+        'api/*',
+    ]);
+
         // ─── Aliases middleware personnalisés ────────────────
         $middleware->alias([
             'role.admin'    => \App\Http\Middleware\IsAdmin::class,
