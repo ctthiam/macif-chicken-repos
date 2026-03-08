@@ -15,6 +15,7 @@ use App\Models\AcheteurProfile;
 use App\Models\EleveurProfile;
 use App\Models\User;
 use App\Services\StorageService;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
@@ -30,6 +31,7 @@ use Illuminate\Support\Str;
 class AuthController extends Controller
 {
     public function __construct(
+        private NotificationService $notificationService,
         private readonly StorageService $storageService
     ) {}
 
@@ -87,6 +89,18 @@ class AuthController extends Controller
 
             SendEmailVerificationJob::dispatch($user);
 
+            // Notifier l'admin du nouvel utilisateur
+            $admins = \App\Models\User::where('role', 'admin')->pluck('id')->toArray();
+            if (!empty($admins)) {
+                $roleLabel = $user->role === 'eleveur' ? 'éleveur' : 'acheteur';
+                $this->notificationService->notifierMultiple(
+                    userIds: $admins,
+                    titre:   '👤 Nouvel utilisateur',
+                    message: $user->name . " vient de s'inscrire en tant que " . $roleLabel . ".",
+                    type:    'system',
+                    data:    ['user_id' => $user->id, 'role' => $user->role]
+                );
+            }
             return response()->json([
                 'success' => true,
                 'message' => 'Inscription réussie. Veuillez vérifier votre email pour activer votre compte.',

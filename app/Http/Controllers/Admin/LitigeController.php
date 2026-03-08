@@ -31,7 +31,8 @@ class LitigeController extends Controller
     public function index(Request $request): JsonResponse
     {
         $query = Litige::with([
-            'commande:id,montant_total,eleveur_id,acheteur_id',
+            'commande:id,montant_total,statut_commande,eleveur_id,acheteur_id',
+            'commande.eleveur:id,name',
             'demandeur:id,name,email',
         ])->orderByDesc('created_at');
 
@@ -43,7 +44,26 @@ class LitigeController extends Controller
 
         return response()->json([
             'success' => true,
-            'data'    => $litiges->items(),
+            'data'    => collect($litiges->items())->map(fn($l) => [
+                'id'          => $l->id,
+                'statut'      => $l->statut,
+                'raison'      => $l->raison,
+                'created_at'  => $l->created_at?->toISOString(),
+                'acheteur'    => $l->demandeur ? [
+                    'id'    => $l->demandeur->id,
+                    'name'  => $l->demandeur->name,
+                    'email' => $l->demandeur->email,
+                ] : null,
+                'eleveur'     => $l->commande?->eleveur ? [
+                    'id'   => $l->commande->eleveur->id,
+                    'name' => $l->commande->eleveur->name,
+                ] : null,
+                'commande'    => $l->commande ? [
+                    'id'      => $l->commande->id,
+                    'montant' => (int) $l->commande->montant_total,
+                    'statut'  => $l->commande->statut_commande,
+                ] : null,
+            ]),
             'meta'    => [
                 'current_page' => $litiges->currentPage(),
                 'last_page'    => $litiges->lastPage(),

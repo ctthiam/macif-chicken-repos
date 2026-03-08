@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
+use Illuminate\Support\Facades\DB;
 use App\Models\Litige;
 use App\Models\Paiement;
 use App\Models\User;
@@ -86,17 +87,21 @@ class DashboardController extends Controller
                 'created_at' => $u->created_at?->toISOString(),
             ]);
 
-        $derniersLitiges = Litige::with(['commande:id', 'acheteur:id,name', 'eleveur:id,name'])
+        $derniersLitiges = Litige::with([
+                'demandeur:id,name',
+                'commande:id,eleveur_id',
+                'commande.eleveur:id,name',
+            ])
             ->orderByDesc('created_at')
             ->limit(5)
             ->get()
             ->map(fn ($l) => [
                 'id'         => $l->id,
-                'motif'      => $l->motif,
+                'motif'      => $l->raison,
                 'statut'     => $l->statut,
                 'created_at' => $l->created_at?->toISOString(),
-                'acheteur'   => $l->acheteur ? ['name' => $l->acheteur->name] : null,
-                'eleveur'    => $l->eleveur  ? ['name' => $l->eleveur->name]  : null,
+                'acheteur'   => $l->demandeur ? ['name' => $l->demandeur->name] : null,
+                'eleveur'    => $l->commande?->eleveur ? ['name' => $l->commande->eleveur->name] : null,
             ]);
 
         $activiteRecente = Commande::with(['acheteur:id,name', 'stock:id,titre'])
@@ -111,6 +116,27 @@ class DashboardController extends Controller
                 'acheteur'       => $c->acheteur ? ['name' => $c->acheteur->name] : null,
                 'stock'          => $c->stock    ? ['titre' => $c->stock->titre]  : null,
             ]);
+
+        // Données mensuelles pour le graphique (6 derniers mois)
+        $donnesMensuelles = collect(range(5, 0))->map(function ($i) {
+            $date = now()->subMonths($i);
+            $revenus = (int) Commande::where('statut_commande', 'livree')
+                ->whereYear('updated_at', $date->year)
+                ->whereMonth('updated_at', $date->month)
+                ->sum('commission_plateforme');
+            $nbCommandes = Commande::whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month)
+                ->count();
+            $nbUsers = \App\Models\User::whereYear('created_at', $date->year)
+                ->whereMonth('created_at', $date->month)
+                ->count();
+            return [
+                'mois'         => $date->isoFormat('MMM YY'),
+                'revenus'      => $revenus,
+                'commandes'    => $nbCommandes,
+                'utilisateurs' => $nbUsers,
+            ];
+        });
 
         return response()->json([
             'success' => true,
@@ -136,6 +162,7 @@ class DashboardController extends Controller
                     'ouverts' => $litigesOuverts,
                     'total'   => $litigesTotal,
                 ],
+                'evolution_mensuelle'    => $donnesMensuelles,
                 'genere_le'              => $now->toISOString(),
                 'derniers_utilisateurs'  => $derniersUtilisateurs,
                 'derniers_litiges'       => $derniersLitiges,

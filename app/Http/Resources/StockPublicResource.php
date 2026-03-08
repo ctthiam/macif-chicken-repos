@@ -48,22 +48,25 @@ class StockPublicResource extends JsonResource
             'eleveur' => $this->when(
                 $this->relationLoaded('eleveur') && $this->eleveur,
                 fn () => [
-                    'id'     => $this->eleveur->id,
-                    'name'   => $this->eleveur->name,
-                    'avatar' => $this->eleveur->avatar,
-                    'ville'  => $this->eleveur->ville,
-
-                    'profil' => $this->when(
-                        $this->eleveur->relationLoaded('eleveurProfile') && $this->eleveur->eleveurProfile,
-                        fn () => [
-                            'nom_poulailler' => $this->eleveur->eleveurProfile->nom_poulailler,
-                            'is_certified'   => $this->eleveur->eleveurProfile->is_certified,
-                            'note_moyenne'   => $this->eleveur->eleveurProfile->note_moyenne,
-                            'nombre_avis'    => $this->eleveur->eleveurProfile->nombre_avis,
-                            'latitude'       => $this->eleveur->eleveurProfile->latitude,
-                            'longitude'      => $this->eleveur->eleveurProfile->longitude,
-                        ]
-                    ),
+                    'id'             => $this->eleveur->id,
+                    'name'           => $this->eleveur->name,
+                    'avatar'         => $this->eleveur->avatar,
+                    'ville'          => $this->eleveur->ville,
+                    // Champs du profil aplatis directement dans eleveur (attendus par stock-card)
+                    'is_certified'   => $this->eleveur->eleveurProfile?->is_certified   ?? false,
+                    'note_moyenne'   => $this->eleveur->eleveurProfile?->note_moyenne   ? (float) $this->eleveur->eleveurProfile->note_moyenne : null,
+                    'nombre_avis'    => $this->eleveur->eleveurProfile?->nombre_avis    ?? 0,
+                    'localisation'   => $this->eleveur->eleveurProfile?->localisation   ?? $this->eleveur->ville,
+                    'nom_poulailler' => $this->eleveur->eleveurProfile?->nom_poulailler ?? $this->eleveur->name,
+                    // Aussi inclure profil imbriqué pour stock-detail (rétrocompat)
+                    'profil' => [
+                        'nom_poulailler' => $this->eleveur->eleveurProfile?->nom_poulailler,
+                        'is_certified'   => $this->eleveur->eleveurProfile?->is_certified ?? false,
+                        'note_moyenne'   => $this->eleveur->eleveurProfile?->note_moyenne ? (float) $this->eleveur->eleveurProfile->note_moyenne : null,
+                        'nombre_avis'    => $this->eleveur->eleveurProfile?->nombre_avis ?? 0,
+                        'latitude'       => $this->eleveur->eleveurProfile?->latitude,
+                        'longitude'      => $this->eleveur->eleveurProfile?->longitude,
+                    ],
                 ]
             ),
         ];

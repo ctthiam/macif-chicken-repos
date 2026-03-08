@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Admin;
 
 use App\Http\Controllers\Controller;
 use App\Models\Commande;
+use App\Models\Abonnement;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Http\Response;
@@ -27,19 +28,68 @@ class FinanceController extends Controller
     {
         $now = now();
 
-        $revenusTotal = Commande::where('statut_commande', 'livree')->sum('commission_plateforme');
-        $revenusMois  = Commande::where('statut_commande', 'livree')
+        // KPIs commissions
+        $commissionsTotal = (int) Commande::where('statut_commande', 'livree')->sum('commission_plateforme');
+        $commissionsMois  = (int) Commande::where('statut_commande', 'livree')
             ->whereYear('updated_at', $now->year)
             ->whereMonth('updated_at', $now->month)
             ->sum('commission_plateforme');
-        $volumeTotal  = Commande::where('statut_commande', 'livree')->sum('montant_total');
+        $volumeTotal = (int) Commande::where('statut_commande', 'livree')->sum('montant_total');
+
+        // KPIs abonnements
+        $abonnementsTotal = 0;
+        try {
+            $abonnementsTotal = (int) \App\Models\Abonnement::where('statut', 'actif')->sum('prix_mensuel');
+        } catch (\Exception $e) {}
+
+        // Répartition abonnements par plan
+        $repartition = [];
+        try {
+            $repartition = \App\Models\Abonnement::selectRaw('plan, COUNT(*) as count, SUM(prix_mensuel) as revenus')
+                ->where('statut', 'actif')
+                ->groupBy('plan')
+                ->get()
+                ->map(fn($r) => [
+                    'plan'    => $r->plan,
+                    'count'   => (int) $r->count,
+                    'revenus' => (int) $r->revenus,
+                ])
+                ->toArray();
+        } catch (\Exception $e) {}
+
+        // Dernières transactions
+        $transactions = Commande::with(['stock:id,titre', 'acheteur:id,name', 'eleveur:id,name'])
+            ->whereIn('statut_paiement', ['paye', 'libere'])
+            ->orderByDesc('updated_at')
+            ->limit(20)
+            ->get()
+            ->map(fn($c) => [
+                'id'                  => $c->id,
+                'reference'           => 'CMD-' . str_pad($c->id, 5, '0', STR_PAD_LEFT),
+                'type'                => 'commande',
+                'montant_total'       => (int) $c->montant_total,
+                'commission_plateforme' => (int) $c->commission_plateforme,
+                'montant_eleveur'     => (int) $c->montant_eleveur,
+                'statut_paiement'     => $c->statut_paiement,
+                'acheteur'            => $c->acheteur?->name,
+                'eleveur'             => $c->eleveur?->name,
+                'stock'               => $c->stock?->titre,
+                'created_at'          => $c->created_at?->toISOString(),
+            ]);
 
         return response()->json([
             'success' => true,
             'data'    => [
-                'commission_total' => (int) $revenusTotal,
-                'commission_mois'  => (int) $revenusMois,
-                'volume_total'     => (int) $volumeTotal,
+                'kpis' => [
+                    'revenus_total'      => $commissionsTotal,
+                    'revenus_mois'       => $commissionsMois,
+                    'commissions_total'  => $commissionsTotal,
+                    'abonnements_total'  => $abonnementsTotal,
+                    'volume_total'       => $volumeTotal,
+                    'variation_revenus'  => 0, // calculé si données historiques dispo
+                ],
+                'repartition_abonnements' => $repartition,
+                'transactions'            => $transactions,
             ],
         ]);
     }

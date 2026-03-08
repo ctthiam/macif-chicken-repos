@@ -24,7 +24,7 @@ class StockController extends Controller
 
     public function index(Request $request): JsonResponse
     {
-        $query = Stock::with('eleveur:id,name,email')
+        $query = Stock::with(['eleveur:id,name,email', 'eleveur.eleveurProfile:user_id,is_certified'])
             ->orderByDesc('created_at');
 
         if ($request->filled('statut')) {
@@ -35,11 +35,32 @@ class StockController extends Controller
             $query->where('eleveur_id', $request->eleveur_id);
         }
 
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('titre', 'ilike', "%{$search}%")
+                  ->orWhere('description', 'ilike', "%{$search}%")
+                  ->orWhereHas('eleveur', fn($e) => $e->where('name', 'ilike', "%{$search}%"));
+            });
+        }
+
         $stocks = $query->paginate($request->integer('per_page', 20));
 
         return response()->json([
             'success' => true,
-            'data'    => $stocks->items(),
+            'data'    => collect($stocks->items())->map(fn($s) => [
+                'id'          => $s->id,
+                'titre'       => $s->titre,
+                'statut'      => $s->statut,
+                'prix_par_kg' => $s->prix_par_kg,
+                'quantite_disponible' => $s->quantite_disponible,
+                'created_at'  => $s->created_at?->toISOString(),
+                'eleveur'     => $s->eleveur ? [
+                    'id'    => $s->eleveur->id,
+                    'name'  => $s->eleveur->name,
+                    'email' => $s->eleveur->email,
+                ] : null,
+            ]),
             'meta'    => [
                 'current_page' => $stocks->currentPage(),
                 'last_page'    => $stocks->lastPage(),
@@ -82,7 +103,7 @@ class StockController extends Controller
             ], 200);
         }
 
-        $nouveauStatut = $action === 'masquer' ? 'masque' : 'disponible';
+        $nouveauStatut = $action === 'masquer' ? 'expire' : 'disponible';
         $stock->update(['statut' => $nouveauStatut]);
 
         $label = $action === 'masquer' ? 'masquée' : 'restaurée';

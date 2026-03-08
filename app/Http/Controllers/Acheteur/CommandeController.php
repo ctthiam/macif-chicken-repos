@@ -7,6 +7,7 @@ use App\Http\Requests\Acheteur\CreateCommandeRequest;
 use App\Http\Resources\CommandeResource;
 use App\Models\Commande;
 use App\Models\Stock;
+use App\Models\User;
 use App\Services\EscrowService;
 use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
@@ -158,6 +159,18 @@ class CommandeController extends Controller
                 type:    'new_order',
                 data:    ['commande_id' => $commande->id, 'acheteur_id' => $acheteur->id]
             );
+
+            // Notifier l'admin
+            $admins = User::where('role', 'admin')->pluck('id')->toArray();
+            if (!empty($admins)) {
+                $this->notificationService->notifierMultiple(
+                    userIds: $admins,
+                    titre:   '🛒 Nouvelle commande',
+                    message: 'Commande CMD-' . str_pad($commande->id, 5, '0', STR_PAD_LEFT) . ' — ' . $acheteur->name . ' → ' . ($stock->titre ?? 'stock') . ' — ' . number_format($montant_total, 0, ',', ' ') . ' FCFA.',
+                    type:    'new_order',
+                    data:    ['commande_id' => $commande->id]
+                );
+            }
 
             return response()->json([
                 'success' => true,
