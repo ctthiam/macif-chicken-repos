@@ -38,6 +38,62 @@ class EleveurPublicController extends Controller
      * @param  int $id  ID de l'éleveur
      * @return JsonResponse  200 | 404
      */
+    // ══════════════════════════════════════════════════════════════
+    // Liste publique des éleveurs actifs
+    // GET /api/eleveurs
+    // ══════════════════════════════════════════════════════════════
+    public function index(Request $request): JsonResponse
+    {
+        $query = User::where('role', 'eleveur')
+            ->where('is_active', true)
+            ->where('is_verified', true)
+            ->with('eleveurProfile')
+            ->whereHas('eleveurProfile')
+            ->withCount(['stocks as stocks_count' => fn($q) => $q->where('statut', 'disponible')]);
+
+        // Recherche par nom/localisation
+        if ($request->filled('q')) {
+            $search = '%' . $request->q . '%';
+            $query->where(function ($q) use ($search) {
+                $q->where('name', 'ILIKE', $search)
+                  ->orWhereHas('eleveurProfile', fn($p) => $p->where('nom_poulailler', 'ILIKE', $search)
+                    ->orWhere('localisation', 'ILIKE', $search));
+            });
+        }
+
+        // Tri
+        match ($request->get('sort', 'note_desc')) {
+            'note_desc' => $query->join('eleveur_profiles', 'users.id', '=', 'eleveur_profiles.user_id')
+                                 ->orderByDesc('eleveur_profiles.note_moyenne')
+                                 ->select('users.*'),
+            default     => $query->latest('users.created_at'),
+        };
+
+        $eleveurs = $query->paginate($request->get('per_page', 12));
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Éleveurs récupérés avec succès.',
+            'data'    => $eleveurs->map(fn($e) => [
+                'id'             => $e->id,
+                'name'           => $e->name,
+                'avatar'         => $e->avatar,
+                'ville'          => $e->ville,
+                'nom_poulailler' => $e->eleveurProfile?->nom_poulailler,
+                'localisation'   => $e->eleveurProfile?->localisation,
+                'note_moyenne'   => $e->eleveurProfile?->note_moyenne,
+                'nombre_avis'    => $e->eleveurProfile?->nombre_avis,
+                'is_certified'   => $e->eleveurProfile?->is_certified ?? false,
+                'stocks_count'   => $e->stocks()->where('statut', 'disponible')->count(),
+            ]),
+            'meta' => [
+                'current_page' => $eleveurs->currentPage(),
+                'last_page'    => $eleveurs->lastPage(),
+                'total'        => $eleveurs->total(),
+            ],
+        ]);
+    }
+
     public function show(int $id): JsonResponse
     {
         // ── 1. Trouver l'éleveur actif ──────────────────────────────
@@ -60,10 +116,6 @@ class EleveurPublicController extends Controller
         // ── 3. Charger les stocks disponibles ───────────────────────
         $eleveur->load(['stocks' => function ($query) {
             $query->where('statut', 'disponible')
-                ->where(function ($q) {
-                    $q->whereNull('date_disponibilite')
-                        ->orWhere('date_disponibilite', '<=', now()->toDateString());
-                })
                 ->orderByDesc('created_at');
         }]);
 

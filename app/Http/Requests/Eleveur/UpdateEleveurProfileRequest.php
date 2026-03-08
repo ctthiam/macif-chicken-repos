@@ -45,6 +45,8 @@ class UpdateEleveurProfileRequest extends FormRequest
             'photos.*'        => ['image', 'mimes:jpeg,jpg,png,webp', 'max:2048'],
 
             // ── Champs user de base (optionnels ici) ─────────────
+            'name'    => ['sometimes', 'string', 'min:2', 'max:191'],
+            'phone'   => ['sometimes', 'nullable', 'string', 'max:20'],
             'ville'   => ['sometimes', 'nullable', 'string', 'max:100'],
             'adresse' => ['sometimes', 'nullable', 'string', 'max:255'],
         ];

@@ -78,14 +78,19 @@ class EleveurPublicResource extends JsonResource
 
             // ── Statistiques globales ────────────────────────────
             'stats' => [
-                'total_stocks' => $this->when(
+                'total_stocks'   => $this->when(
                     $this->relationLoaded('stocks'),
                     fn () => $this->stocks->count()
                 ),
-                'total_avis'   => $this->when(
+                'total_avis'     => $this->when(
                     $this->relationLoaded('avisRecus'),
                     fn () => $this->avisRecus->count()
                 ),
+                'note_moyenne'   => $this->eleveurProfile?->note_moyenne,
+                'nombre_avis'    => $this->eleveurProfile?->nombre_avis,
+                'is_certified'   => $this->eleveurProfile?->is_certified ?? false,
+                'localisation'   => $this->eleveurProfile?->localisation,
+                'nom_poulailler' => $this->eleveurProfile?->nom_poulailler,
             ],
         ];
     }

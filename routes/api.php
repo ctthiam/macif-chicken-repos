@@ -33,6 +33,7 @@ Route::prefix('auth')->group(function () {
 */
 Route::get('/stocks',                           [\App\Http\Controllers\Public\StockPublicController::class, 'index']);
 Route::get('/stocks/{id}',                      [\App\Http\Controllers\Public\StockPublicController::class, 'show']);
+Route::get('/eleveurs',                          [\App\Http\Controllers\Public\EleveurPublicController::class, 'index']);
 Route::get('/eleveurs/{id}/public',             [\App\Http\Controllers\Public\EleveurPublicController::class, 'show']);
 
 /*

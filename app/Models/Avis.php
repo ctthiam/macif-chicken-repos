@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
+use App\Models\EleveurProfile;
 
 /**
  * Fichier : app/Models/Avis.php
@@ -47,9 +48,15 @@ class Avis extends Model
             ->selectRaw('AVG(note) as moyenne, COUNT(*) as total')
             ->first();
 
-        EleveurProfile::where('user_id', $eleveurId)->update([
-            'note_moyenne' => round((float) ($stats->moyenne ?? 0), 1),
-            'nombre_avis'  => (int) ($stats->total ?? 0),
-        ]);
+        // updateOrCreate garantit que même si l'éleveur n'a pas encore de profil,
+        // la note_moyenne est bien sauvegardée (nom_poulailler requis à la création)
+        EleveurProfile::updateOrCreate(
+            ['user_id' => $eleveurId],
+            [
+                'nom_poulailler' => EleveurProfile::where('user_id', $eleveurId)->value('nom_poulailler') ?? 'Mon poulailler',
+                'note_moyenne'   => round((float) ($stats->moyenne ?? 0), 1),
+                'nombre_avis'    => (int) ($stats->total ?? 0),
+            ]
+        );
     }
 }

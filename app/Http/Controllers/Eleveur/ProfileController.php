@@ -78,8 +78,10 @@ class ProfileController extends Controller
 
         // ── 1. Mise à jour des champs user ──────────────────────────
         $userFields = [];
-        if ($request->has('ville'))   $userFields['ville']   = $request->ville;
-        if ($request->has('adresse')) $userFields['adresse'] = $request->adresse;
+        if ($request->filled('name'))    $userFields['name']    = $request->name;
+        if ($request->has('phone'))      $userFields['phone']   = $request->phone;
+        if ($request->has('ville'))      $userFields['ville']   = $request->ville;
+        if ($request->has('adresse'))    $userFields['adresse'] = $request->adresse;
         if (!empty($userFields)) $user->update($userFields);
 
         // ── 2. Mise à jour des champs profil éleveur ────────────────

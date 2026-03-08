@@ -41,7 +41,7 @@ class AvisController extends Controller
         $request->validate([
             'commande_id' => ['required', 'integer', 'exists:commandes,id'],
             'note'        => ['required', 'integer', 'between:1,5'],
-            'commentaire' => ['required', 'string', 'min:10', 'max:1000'],
+            'commentaire' => ['required', 'string', 'min:2', 'max:1000'],
         ]);
 
         $acheteur = $request->user();

@@ -63,8 +63,10 @@ class ProfileController extends Controller
 
         // ── 1. Champs user ──────────────────────────────────────────
         $userFields = [];
-        if ($request->has('ville'))   $userFields['ville']   = $request->ville;
-        if ($request->has('adresse')) $userFields['adresse'] = $request->adresse;
+        if ($request->filled('name'))    $userFields['name']    = $request->name;
+        if ($request->has('phone'))      $userFields['phone']   = $request->phone;
+        if ($request->has('ville'))      $userFields['ville']   = $request->ville;
+        if ($request->has('adresse'))    $userFields['adresse'] = $request->adresse;
         if (!empty($userFields)) $user->update($userFields);
 
         // ── 2. Champs profil acheteur ───────────────────────────────
