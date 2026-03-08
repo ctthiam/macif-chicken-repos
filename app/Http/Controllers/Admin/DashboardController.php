@@ -72,6 +72,46 @@ class DashboardController extends Controller
 
         // ── Réponse ──────────────────────────────────────────────
 
+        // ── Données récentes pour le dashboard ──────────────────
+        $derniersUtilisateurs = User::where('role', '!=', 'admin')
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get()
+            ->map(fn ($u) => [
+                'id'         => $u->id,
+                'name'       => $u->name,
+                'email'      => $u->email,
+                'role'       => $u->role,
+                'is_verified'=> $u->is_verified,
+                'created_at' => $u->created_at?->toISOString(),
+            ]);
+
+        $derniersLitiges = Litige::with(['commande:id', 'acheteur:id,name', 'eleveur:id,name'])
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get()
+            ->map(fn ($l) => [
+                'id'         => $l->id,
+                'motif'      => $l->motif,
+                'statut'     => $l->statut,
+                'created_at' => $l->created_at?->toISOString(),
+                'acheteur'   => $l->acheteur ? ['name' => $l->acheteur->name] : null,
+                'eleveur'    => $l->eleveur  ? ['name' => $l->eleveur->name]  : null,
+            ]);
+
+        $activiteRecente = Commande::with(['acheteur:id,name', 'stock:id,titre'])
+            ->orderByDesc('created_at')
+            ->limit(5)
+            ->get()
+            ->map(fn ($c) => [
+                'id'             => $c->id,
+                'statut_commande'=> $c->statut_commande,
+                'montant_total'  => (int) $c->montant_total,
+                'created_at'     => $c->created_at?->toISOString(),
+                'acheteur'       => $c->acheteur ? ['name' => $c->acheteur->name] : null,
+                'stock'          => $c->stock    ? ['titre' => $c->stock->titre]  : null,
+            ]);
+
         return response()->json([
             'success' => true,
             'message' => 'KPIs admin récupérés avec succès.',
@@ -96,7 +136,10 @@ class DashboardController extends Controller
                     'ouverts' => $litigesOuverts,
                     'total'   => $litigesTotal,
                 ],
-                'genere_le' => $now->toISOString(),
+                'genere_le'              => $now->toISOString(),
+                'derniers_utilisateurs'  => $derniersUtilisateurs,
+                'derniers_litiges'       => $derniersLitiges,
+                'activite_recente'       => $activiteRecente,
             ],
         ], 200);
     }

@@ -2,16 +2,10 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 
-/**
- * Fichier : app/Models/Stock.php
- */
 class Stock extends Model
 {
-    use HasFactory;
-
     protected $fillable = [
         'eleveur_id',
         'titre',
@@ -29,12 +23,12 @@ class Stock extends Model
     ];
 
     protected $casts = [
-        'photos'              => 'array',
-        'date_disponibilite'  => 'date',
+        'photos'                => 'array',
+        'date_disponibilite'    => 'date',
         'date_peremption_stock' => 'date',
-        'prix_par_kg'         => 'decimal:0',
-        'prix_par_unite'      => 'decimal:0',
-        'poids_moyen_kg'      => 'decimal:2',
+        'poids_moyen_kg'        => 'decimal:2',
+        'prix_par_kg'           => 'decimal:0',
+        'prix_par_unite'        => 'decimal:0',
     ];
 
     public function eleveur()
@@ -45,5 +39,21 @@ class Stock extends Model
     public function commandes()
     {
         return $this->hasMany(Commande::class, 'stock_id');
+    }
+
+    /**
+     * Avis reçus via les commandes de ce stock.
+     * Un avis est lié à une commande, qui est liée à un stock.
+     */
+    public function avis()
+    {
+        return $this->hasManyThrough(
+            \App\Models\Avis::class,
+            Commande::class,
+            'stock_id',    // FK sur commandes
+            'commande_id', // FK sur avis
+            'id',          // PK stock
+            'id'           // PK commande
+        );
     }
 }

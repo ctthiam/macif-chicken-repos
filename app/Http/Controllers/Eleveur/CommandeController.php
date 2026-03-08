@@ -7,6 +7,7 @@ use App\Http\Requests\Eleveur\UpdateCommandeRequest;
 use App\Http\Resources\CommandeResource;
 use App\Models\Commande;
 use App\Models\Stock;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -23,6 +24,8 @@ use Illuminate\Http\Request;
  */
 class CommandeController extends Controller
 {
+    public function __construct(private NotificationService $notificationService) {}
+
     // ══════════════════════════════════════════════════════════════
     // CMD-10 — Historique commandes éleveur
     // GET /api/eleveur/commandes
@@ -126,6 +129,20 @@ class CommandeController extends Controller
             'en_livraison' => 'Commande en cours de livraison.',
             'livree'       => 'Livraison marquée comme effectuée. En attente de confirmation de l\'acheteur.',
         ];
+
+        // ── 5. Notifier l'acheteur du changement de statut ──────────
+        $notifMessages = [
+            'confirmer'    => ['titre' => '✅ Commande confirmée',       'msg' => 'Votre commande #' . $id . ' a été confirmée par ' . $eleveur->name . '. Préparation en cours.'],
+            'en_livraison' => ['titre' => '🚚 Commande en livraison',    'msg' => 'Votre commande #' . $id . ' est en cours de livraison par ' . $eleveur->name . '.'],
+            'livree'       => ['titre' => '📦 Commande livrée',          'msg' => 'Votre commande #' . $id . ' a été marquée comme livrée. Confirmez la réception pour libérer le paiement.'],
+        ];
+        $this->notificationService->notifier(
+            userId:  $commande->acheteur_id,
+            titre:   $notifMessages[$action]['titre'],
+            message: $notifMessages[$action]['msg'],
+            type:    'new_order',
+            data:    ['commande_id' => $id, 'statut' => $transition['to']]
+        );
 
         $commande->load(['stock', 'acheteur', 'eleveur']);
 

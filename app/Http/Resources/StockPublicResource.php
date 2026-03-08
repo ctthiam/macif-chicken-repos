@@ -31,6 +31,19 @@ class StockPublicResource extends JsonResource
             'vues'                  => $this->vues,
             'created_at'            => $this->created_at?->toISOString(),
 
+            // ── Avis du stock ───────────────────────────────────
+            'avis' => $this->when(
+                $this->relationLoaded('avis'),
+                fn () => $this->avis->map(fn ($a) => [
+                    'id'          => $a->id,
+                    'note'        => $a->note,
+                    'commentaire' => $a->commentaire,
+                    'created_at'  => $a->created_at?->toISOString(),
+                    'auteur'      => $a->auteur ? ['name' => $a->auteur->name] : null,
+                    'reply'       => $a->reply,
+                ])->values()->all()
+            ),
+
             // ── Éleveur (infos publiques seulement) ─────────────
             'eleveur' => $this->when(
                 $this->relationLoaded('eleveur') && $this->eleveur,

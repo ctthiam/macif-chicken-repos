@@ -5,8 +5,7 @@
 
 use Illuminate\Support\Facades\Route;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Public\StockPublicController;
-use App\Http\Controllers\Eleveur\TransactionController;
+
 /*
 |─────────────────────────────────────────────────────────────
 | AUTH (publique)
@@ -23,6 +22,7 @@ Route::prefix('auth')->group(function () {
         Route::post('/logout',                  [AuthController::class, 'logout']);
         Route::get('/me',                       [AuthController::class, 'me']);
         Route::put('/profile',                  [AuthController::class, 'updateProfile']);
+        Route::put('/change-password',          [AuthController::class, 'changePassword']);
     });
 });
 
@@ -35,17 +35,6 @@ Route::get('/stocks',                           [\App\Http\Controllers\Public\St
 Route::get('/stocks/{id}',                      [\App\Http\Controllers\Public\StockPublicController::class, 'show']);
 Route::get('/eleveurs/{id}/public',             [\App\Http\Controllers\Public\EleveurPublicController::class, 'show']);
 
-// Public — Recherche & Découverte (Sprint 4)
-Route::get('/stocks', [StockPublicController::class, 'index']);
-Route::get('/stocks/{id}', [StockPublicController::class, 'show']);
-Route::get('/eleveurs/carte', [StockPublicController::class, 'carte']);
-
-// Public
-Route::get('/abonnements/plans', [\App\Http\Controllers\Eleveur\AbonnementController::class, 'plans']);
-
-// Webhook abonnement (public)
-Route::post('/paiements/webhook-abonnement', [\App\Http\Controllers\Shared\PaiementController::class, 'webhookAbonnement']);
-
 /*
 |─────────────────────────────────────────────────────────────
 | ÉLEVEUR (auth + role:eleveur)
@@ -56,6 +45,7 @@ Route::middleware(['auth:sanctum', 'role.eleveur'])->prefix('eleveur')->group(fu
     Route::put('/profile',                      [\App\Http\Controllers\Eleveur\ProfileController::class, 'update']);
     Route::get('/stocks',                       [\App\Http\Controllers\Eleveur\StockController::class, 'index']);
     Route::post('/stocks',                      [\App\Http\Controllers\Eleveur\StockController::class, 'store']);
+    Route::get('/stocks/{id}',                  [\App\Http\Controllers\Eleveur\StockController::class, 'show']);
     Route::put('/stocks/{id}',                  [\App\Http\Controllers\Eleveur\StockController::class, 'update']);
     Route::delete('/stocks/{id}',               [\App\Http\Controllers\Eleveur\StockController::class, 'destroy']);
     Route::get('/commandes',                    [\App\Http\Controllers\Eleveur\CommandeController::class, 'index']);
@@ -64,11 +54,8 @@ Route::middleware(['auth:sanctum', 'role.eleveur'])->prefix('eleveur')->group(fu
     Route::get('/avis',                         [\App\Http\Controllers\Eleveur\AvisController::class, 'index']);
     Route::put('/avis/{id}/reply',              [\App\Http\Controllers\Eleveur\AvisController::class, 'reply']);
     Route::get('/abonnement',                   [\App\Http\Controllers\Eleveur\AbonnementController::class, 'show']);
+    Route::post('/abonnement/souscrire',         [\App\Http\Controllers\Eleveur\AbonnementController::class, 'souscrire']);
     Route::get('/transactions',                 [\App\Http\Controllers\Eleveur\TransactionController::class, 'index']);
-    // Groupe éleveur (déjà présent : GET /abonnement)
-    Route::post('/abonnement/souscrire', [\App\Http\Controllers\Eleveur\AbonnementController::class, 'souscrire']);
-    // PAY-06 — Reçu PDF (dans le groupe eleveur)
-Route::get('/transactions/{id}/recu', [TransactionController::class, 'recu']);
 });
 
 /*
@@ -82,7 +69,6 @@ Route::middleware(['auth:sanctum', 'role.acheteur'])->prefix('acheteur')->group(
     Route::post('/commandes',                   [\App\Http\Controllers\Acheteur\CommandeController::class, 'store']);
     Route::get('/commandes',                    [\App\Http\Controllers\Acheteur\CommandeController::class, 'index']);
     Route::get('/commandes/{id}',               [\App\Http\Controllers\Acheteur\CommandeController::class, 'show']);
-    // CMD-04 — Annulation acheteur
     Route::delete('/commandes/{id}',            [\App\Http\Controllers\Acheteur\CommandeController::class, 'destroy']);
     Route::get('/dashboard',                    [\App\Http\Controllers\Acheteur\DashboardController::class, 'index']);
     Route::post('/favoris/{eleveur_id}',        [\App\Http\Controllers\Acheteur\FavoriController::class, 'store']);
@@ -146,6 +132,4 @@ Route::middleware(['auth:sanctum', 'role.admin'])->prefix('admin')->group(functi
     Route::put('/litiges/{id}/resoudre',        [\App\Http\Controllers\Admin\LitigeController::class, 'resoudre']);
     Route::get('/finances',                     [\App\Http\Controllers\Admin\FinanceController::class, 'index']);
     Route::get('/finances/export',              [\App\Http\Controllers\Admin\FinanceController::class, 'export']);
-    Route::get('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'index']);
-    Route::put('/settings', [\App\Http\Controllers\Admin\SettingController::class, 'update']);
 });

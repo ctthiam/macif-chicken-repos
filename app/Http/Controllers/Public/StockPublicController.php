@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Public;
 
 use App\Http\Controllers\Controller;
 use App\Http\Resources\StockPublicResource;
+use App\Models\Avis;
 use App\Models\Stock;
 use App\Models\User;
 use Illuminate\Http\JsonResponse;
@@ -63,17 +64,10 @@ class StockPublicController extends Controller
     {
         $query = Stock::query()
             ->where('statut', 'disponible')
-            ->where(function ($q) {
-                $q->whereNull('date_disponibilite')
-                    ->orWhere('date_disponibilite', '<=', now()->addDays(7)->toDateString()); // ← +7 jours ->orWhere('date_disponibilite', '<=', now()->toDateString());
-            })
             ->with(['eleveur' => function ($q) {
-                $q->where('is_active', true)
-                    ->with('eleveurProfile');
+                $q->with('eleveurProfile');
             }])
-            ->whereHas('eleveur', function ($q) {
-                $q->where('is_active', true);
-            });
+            ->whereHas('eleveur');
 
         // ── RCH-08 : Recherche full-text ───────────────────────────
         if ($request->filled('q')) {
@@ -169,10 +163,12 @@ class StockPublicController extends Controller
     {
         $stock = Stock::where('id', $id)
             ->where('statut', 'disponible')
-            ->with(['eleveur' => function ($q) {
-                $q->where('is_active', true)->with('eleveurProfile');
-            }])
-            ->whereHas('eleveur', fn ($q) => $q->where('is_active', true))
+            ->with([
+                'eleveur' => function ($q) {
+                    $q->with('eleveurProfile');
+                },
+            ])
+            ->whereHas('eleveur')
             ->first();
 
         if (!$stock) {
@@ -186,10 +182,30 @@ class StockPublicController extends Controller
         // STK-09 : Incrémenter les vues
         $stock->increment('vues');
 
+        // Charger les avis de l'éleveur (cible_id = eleveur_id)
+        $avis = Avis::where('cible_id', $stock->eleveur_id)
+            ->with('auteur:id,name')
+            ->orderByDesc('created_at')
+            ->limit(20)
+            ->get()
+            ->map(fn ($a) => [
+                'id'          => $a->id,
+                'note'        => $a->note,
+                'commentaire' => $a->commentaire,
+                'reply'       => $a->reply,
+                'created_at'  => $a->created_at?->toISOString(),
+                'auteur'      => $a->auteur ? ['name' => $a->auteur->name] : null,
+            ]);
+
+        $stock->load('eleveur.eleveurProfile');
+
         return response()->json([
             'success' => true,
             'message' => 'Détail du stock récupéré avec succès.',
-            'data'    => new StockPublicResource($stock->fresh(['eleveur', 'eleveur.eleveurProfile'])),
+            'data'    => array_merge(
+                (new StockPublicResource($stock))->resolve(),
+                ['avis' => $avis]
+            ),
         ], 200);
     }
 

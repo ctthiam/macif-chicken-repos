@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Shared;
 use App\Http\Controllers\Controller;
 use App\Models\Avis;
 use App\Models\Commande;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -19,6 +20,8 @@ use Illuminate\Http\Request;
  */
 class AvisController extends Controller
 {
+    public function __construct(private NotificationService $notificationService) {}
+
     // ══════════════════════════════════════════════════════════════
     // AVI-01 + AVI-02 — Laisser un avis (note 1-5 + commentaire)
     // POST /api/avis
@@ -80,6 +83,16 @@ class AvisController extends Controller
 
         // ── AVI-04 : Recalcul note moyenne ────────────────────────
         Avis::recalculeNoteMoyenne($commande->eleveur_id);
+
+        // ── Notifier l'éleveur du nouvel avis ─────────────────────
+        $etoiles = str_repeat('⭐', $request->note);
+        $this->notificationService->notifier(
+            userId:  $commande->eleveur_id,
+            titre:   '⭐ Nouvel avis reçu',
+            message: $acheteur->name . ' vous a laissé un avis ' . $etoiles . ' : "' . mb_substr($request->commentaire, 0, 80) . (mb_strlen($request->commentaire) > 80 ? '…' : '') . '"',
+            type:    'review',
+            data:    ['avis_id' => $avis->id, 'commande_id' => $commande->id]
+        );
 
         return response()->json([
             'success' => true,

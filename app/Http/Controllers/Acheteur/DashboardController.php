@@ -61,6 +61,7 @@ class DashboardController extends Controller
                 'montant_total'   => (int) $c->montant_total,
                 'quantite'        => $c->quantite,
                 'stock_titre'     => $c->stock?->titre,
+                'stock_photo'     => $c->stock?->photos[0] ?? null,
                 'eleveur_nom'     => $c->eleveur?->name,
                 'created_at'      => $c->created_at?->toISOString(),
             ]);

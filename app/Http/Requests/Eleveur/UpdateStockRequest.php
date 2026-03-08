@@ -32,6 +32,7 @@ class UpdateStockRequest extends FormRequest
             'prix_par_kg'         => ['sometimes', 'numeric', 'min:1'],
             'prix_par_unite'      => ['sometimes', 'nullable', 'numeric', 'min:1'],
             'mode_vente'          => ['sometimes', 'string', 'in:vivant,abattu,les_deux'],
+            'statut'              => ['sometimes', 'string', 'in:disponible,reserve,epuise,expire'],
             'date_disponibilite'  => ['sometimes', 'date', 'after_or_equal:today'],
             'date_peremption_stock' => ['sometimes', 'nullable', 'date', 'after:date_disponibilite'],
 
@@ -48,6 +49,7 @@ class UpdateStockRequest extends FormRequest
     public function messages(): array
     {
         return [
+            'statut.in'                         => 'Statut invalide.',
             'mode_vente.in'                     => 'Le mode de vente doit être : vivant, abattu ou les_deux.',
             'date_disponibilite.after_or_equal'  => 'La date de disponibilité ne peut pas être dans le passé.',
             'date_peremption_stock.after'         => 'La date de péremption doit être après la date de disponibilité.',

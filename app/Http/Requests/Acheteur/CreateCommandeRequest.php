@@ -24,7 +24,7 @@ class CreateCommandeRequest extends FormRequest
         return [
             'stock_id'                 => ['required', 'integer', 'exists:stocks,id'],
             'quantite'                 => ['required', 'integer', 'min:1'],
-            'adresse_livraison'        => ['required', 'string', 'min:5', 'max:500'],
+            'adresse_livraison'        => ['required', 'string', 'min:3', 'max:500'],
             'mode_paiement'            => ['required', 'string', 'in:wave,orange_money,free_money'],
             'date_livraison_souhaitee' => ['nullable', 'date', 'after_or_equal:today'],
             'note_livraison'           => ['nullable', 'string', 'max:500'],
@@ -39,6 +39,7 @@ class CreateCommandeRequest extends FormRequest
             'quantite.required'          => 'La quantité est obligatoire.',
             'quantite.min'               => 'La quantité doit être d\'au moins 1.',
             'adresse_livraison.required' => 'L\'adresse de livraison est obligatoire.',
+            'adresse_livraison.min'      => 'L\'adresse de livraison doit contenir au moins 3 caractères.',
             'mode_paiement.required'     => 'Le mode de paiement est obligatoire.',
             'mode_paiement.in'           => 'Le mode de paiement doit être : wave, orange_money ou free_money.',
             'date_livraison_souhaitee.after_or_equal' => 'La date de livraison ne peut pas être dans le passé.',

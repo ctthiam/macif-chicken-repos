@@ -8,6 +8,7 @@ use App\Http\Resources\CommandeResource;
 use App\Models\Commande;
 use App\Models\Stock;
 use App\Services\EscrowService;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
@@ -28,7 +29,8 @@ use Illuminate\Support\Facades\DB;
 class CommandeController extends Controller
 {
     public function __construct(
-        private readonly EscrowService $escrowService
+        private readonly EscrowService $escrowService,
+        private readonly NotificationService $notificationService
     ) {}
 
     // ══════════════════════════════════════════════════════════════
@@ -98,10 +100,28 @@ class CommandeController extends Controller
                 ], 422);
             }
 
-            $poids_total     = round($request->quantite * $stock->poids_moyen_kg, 2);
-            $montant_total   = intval(round($request->quantite * $stock->prix_par_kg * $stock->poids_moyen_kg));
+            // Calcul selon mode_vente du stock
+            // - 'unite' ou 'les_deux' avec prix_par_unite → prix à l'unité
+            // - 'kg' ou sans prix_par_unite → prix au kg * poids moyen
+            $venteParUnite = $stock->prix_par_unite && in_array($stock->mode_vente, ['unite', 'les_deux']);
+
+            if ($venteParUnite) {
+                $poids_total   = round($request->quantite * $stock->poids_moyen_kg, 2);
+                $montant_total = intval(round($request->quantite * $stock->prix_par_unite));
+            } else {
+                $poids_total   = round($request->quantite * $stock->poids_moyen_kg, 2);
+                $montant_total = intval(round($request->quantite * $stock->prix_par_kg * $stock->poids_moyen_kg));
+            }
+
             $commission      = intval(round($montant_total * 0.07));
             $montant_eleveur = $montant_total - $commission;
+
+            // En mode développement sans clés PayTech, on simule le paiement
+            // pour permettre de tester le cycle complet de la commande.
+            $payTechKey       = config('services.paytech.api_key');
+            $statutPaiementInit = (app()->environment('local') && empty($payTechKey))
+                ? 'paye'        // mode test : paiement simulé directement
+                : 'en_attente'; // mode prod : paiement via PayTech webhook
 
             $commande = Commande::create([
                 'acheteur_id'              => $acheteur->id,
@@ -113,7 +133,7 @@ class CommandeController extends Controller
                 'commission_plateforme'    => $commission,
                 'montant_eleveur'          => $montant_eleveur,
                 'mode_paiement'            => $request->mode_paiement,
-                'statut_paiement'          => 'en_attente',
+                'statut_paiement'          => $statutPaiementInit,
                 'statut_commande'          => 'confirmee',
                 'adresse_livraison'        => $request->adresse_livraison,
                 'date_livraison_souhaitee' => $request->date_livraison_souhaitee,
@@ -123,10 +143,21 @@ class CommandeController extends Controller
             $nouvelleQuantite = $stock->quantite_disponible - $request->quantite;
             $stock->update([
                 'quantite_disponible' => max(0, $nouvelleQuantite),
-                'statut'              => $nouvelleQuantite <= 0 ? 'epuise' : 'reserve',
+                // 'reserve' uniquement quand tout le stock est épuisé
+                // Sinon on reste 'disponible' pour que l'annonce reste visible
+                'statut' => $nouvelleQuantite <= 0 ? 'epuise' : 'disponible',
             ]);
 
             $commande->load(['stock', 'eleveur', 'acheteur']);
+
+            // Notifier l'éleveur de la nouvelle commande
+            $this->notificationService->notifier(
+                userId:  $stock->eleveur_id,
+                titre:   '🛒 Nouvelle commande',
+                message: $acheteur->name . ' a passé une commande de ' . $request->quantite . ' kg pour ' . number_format($montant_total, 0, ',', ' ') . ' FCFA.',
+                type:    'new_order',
+                data:    ['commande_id' => $commande->id, 'acheteur_id' => $acheteur->id]
+            );
 
             return response()->json([
                 'success' => true,

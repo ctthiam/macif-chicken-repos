@@ -56,7 +56,7 @@ class AuthController extends Controller
                     'role'                     => $request->role,
                     'ville'                    => $request->ville,
                     'adresse'                  => $request->adresse,
-                    'is_verified'              => false,
+                    'is_verified'              => app()->environment('local'), // true en local, false en prod
                     'is_active'                => true,
                     'email_verification_token' => Str::random(64),
                 ]);
@@ -277,6 +277,36 @@ class AuthController extends Controller
             'message' => 'Profil mis à jour avec succès.',
             'data'    => new UserResource($user->fresh()),
         ], 200);
+    }
+
+    // ══════════════════════════════════════════════════════════════
+    // AUTH-CP — Changement de mot de passe (utilisateur connecté)
+    // PUT /api/auth/change-password
+    // ══════════════════════════════════════════════════════════════
+
+    public function changePassword(Request $request): JsonResponse
+    {
+        $request->validate([
+            'current_password' => ['required', 'string'],
+            'new_password'     => ['required', 'string', 'min:8', 'confirmed'],
+        ]);
+
+        $user = $request->user();
+
+        if (!Hash::check($request->current_password, $user->password)) {
+            return response()->json([
+                'success' => false,
+                'message' => 'Mot de passe actuel incorrect.',
+                'errors'  => ['current_password' => ['Mot de passe incorrect.']],
+            ], 422);
+        }
+
+        $user->update(['password' => Hash::make($request->new_password)]);
+
+        return response()->json([
+            'success' => true,
+            'message' => 'Mot de passe modifié avec succès.',
+        ]);
     }
 
     // ══════════════════════════════════════════════════════════════

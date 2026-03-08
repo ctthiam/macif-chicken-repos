@@ -126,6 +126,19 @@ class StockController extends Controller
      * @param  int                $id
      * @return JsonResponse  200 | 403 | 404 | 422
      */
+    public function show(Request $request, int $id): JsonResponse
+    {
+        $stock = Stock::where('id', $id)
+            ->where('eleveur_id', $request->user()->id)
+            ->first();
+
+        if (!$stock) {
+            return response()->json(['success' => false, 'message' => 'Stock introuvable.'], 404);
+        }
+
+        return response()->json(['success' => true, 'data' => $stock]);
+    }
+
     public function update(UpdateStockRequest $request, int $id): JsonResponse
     {
         $user  = $request->user();
@@ -150,7 +163,9 @@ class StockController extends Controller
         }
 
         // ── 3. Vérifier statut modifiable ────────────────────────────
-        if (in_array($stock->statut, ['epuise', 'expire'])) {
+        // Si la requête ne touche qu'au statut (masquer/activer), on laisse passer.
+        $onlyStatutChange = $request->has('statut') && count($request->except(['statut', '_method'])) === 0;
+        if (!$onlyStatutChange && in_array($stock->statut, ['epuise', 'expire'])) {
             return response()->json([
                 'success' => false,
                 'message' => "Impossible de modifier une annonce avec le statut « {$stock->statut} ».",
@@ -167,6 +182,7 @@ class StockController extends Controller
         if ($request->has('prix_par_kg'))            $fields['prix_par_kg']         = $request->prix_par_kg;
         if ($request->has('prix_par_unite'))         $fields['prix_par_unite']      = $request->prix_par_unite;
         if ($request->has('mode_vente'))             $fields['mode_vente']          = $request->mode_vente;
+        if ($request->filled('statut'))              $fields['statut']              = $request->statut;
         if ($request->has('date_disponibilite'))     $fields['date_disponibilite']  = $request->date_disponibilite;
         if ($request->has('date_peremption_stock'))  $fields['date_peremption_stock'] = $request->date_peremption_stock;
 

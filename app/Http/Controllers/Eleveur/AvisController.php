@@ -4,6 +4,7 @@ namespace App\Http\Controllers\Eleveur;
 
 use App\Http\Controllers\Controller;
 use App\Models\Avis;
+use App\Services\NotificationService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 
@@ -18,6 +19,8 @@ use Illuminate\Http\Request;
  */
 class AvisController extends Controller
 {
+    public function __construct(private NotificationService $notificationService) {}
+
     // ══════════════════════════════════════════════════════════════
     // GET /api/eleveur/avis — Liste des avis reçus
     // ══════════════════════════════════════════════════════════════
@@ -81,6 +84,15 @@ class AvisController extends Controller
         }
 
         $avis->update(['reply' => $request->reply]);
+
+        // Notifier l'auteur de l'avis (l'acheteur)
+        $this->notificationService->notifier(
+            userId:  $avis->auteur_id,
+            titre:   '💬 Réponse à votre avis',
+            message: $eleveur->name . ' a répondu à votre avis : "' . mb_substr($request->reply, 0, 80) . (mb_strlen($request->reply) > 80 ? '…' : '') . '"',
+            type:    'review',
+            data:    ['avis_id' => $avis->id, 'eleveur_id' => $eleveur->id]
+        );
 
         return response()->json([
             'success' => true,
